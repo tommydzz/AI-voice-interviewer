@@ -7,6 +7,7 @@ export interface UseTextToSpeechOptions {
   rate?: number;
   pitch?: number;
   volume?: number;
+  voiceName?: string;
 }
 
 export interface UseTextToSpeechResult {
@@ -19,7 +20,13 @@ export interface UseTextToSpeechResult {
 export function useTextToSpeech(
   options?: UseTextToSpeechOptions
 ): UseTextToSpeechResult {
-  const { lang = "zh-CN", rate = 1, pitch = 1, volume = 1 } = options || {};
+  const {
+    lang = "zh-CN",
+    rate = 1,
+    pitch = 1,
+    volume = 1,
+    voiceName,
+  } = options || {};
   const [status, setStatus] = useState<TtsStatus>("idle");
   const utterRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -40,6 +47,11 @@ export function useTextToSpeech(
       utter.rate = rate;
       utter.pitch = pitch;
       utter.volume = volume;
+      if (voiceName) {
+        const voices = window.speechSynthesis.getVoices();
+        const v = voices.find((v) => v.name === voiceName);
+        if (v) utter.voice = v;
+      }
       utter.onstart = () => setStatus("speaking");
       utter.onerror = () => setStatus("error");
       utter.onend = () => setStatus("stopped");
