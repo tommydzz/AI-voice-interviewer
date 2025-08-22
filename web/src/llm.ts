@@ -88,3 +88,49 @@ export async function getFollowupQuestion(
     return { question: fallbacks[idx] };
   }
 }
+
+export async function checkDeepseekConnectivity(
+  options?: DeepSeekOptions & { timeoutMs?: number }
+): Promise<{ ok: boolean; code: string }> {
+  const envKey = (import.meta as any)?.env?.VITE_DEEPSEEK_API_KEY as
+    | string
+    | undefined;
+  const apiKey =
+    options?.apiKey ||
+    envKey ||
+    DEFAULT_DEEPSEEK_API_KEY ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("DEEPSEEK_API_KEY") || ""
+      : "");
+  if (!apiKey) return { ok: false, code: "missing_key" };
+
+  const model = options?.model || "deepseek-chat";
+  const timeoutMs = options?.timeoutMs ?? 4000;
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: "你是健康检查" },
+          { role: "user", content: "ping" },
+        ],
+        temperature: 0,
+        max_tokens: 1,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(t);
+    if (res.ok) return { ok: true, code: "ok" };
+    if (res.status === 401) return { ok: false, code: "unauthorized" };
+    return { ok: false, code: `http_${res.status}` };
+  } catch (e) {
+    return { ok: false, code: "network_or_cors" };
+  }
+}

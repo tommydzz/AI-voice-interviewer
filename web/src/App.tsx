@@ -8,7 +8,7 @@ import {
   type InterviewState,
   type InterviewStyle,
 } from "./types";
-import { getFollowupQuestion } from "./llm";
+import { getFollowupQuestion, checkDeepseekConnectivity } from "./llm";
 import { DEFAULT_DEEPSEEK_API_KEY } from "./config";
 import {
   Container,
@@ -27,6 +27,7 @@ import {
   Box,
   useMediaQuery,
 } from "@mui/material";
+import { useEffect } from "react";
 
 function App() {
   const [state, setState] = useState<InterviewState>({
@@ -80,8 +81,23 @@ function App() {
   const [textAnswer, setTextAnswer] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [textMode, setTextMode] = useState<boolean>(false);
+  const [dsStatus, setDsStatus] = useState<{
+    ok: boolean;
+    code: string;
+  } | null>(null);
 
   const isMobile = useMediaQuery("(max-width:600px)");
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const res = await checkDeepseekConnectivity();
+      if (mounted) setDsStatus(res);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const currentQuestion = useMemo(
     () => state.items[state.currentIndex]?.question ?? "",
@@ -235,6 +251,18 @@ function App() {
         <Typography variant={isMobile ? "h5" : "h4"} fontWeight={700}>
           中文语音面试官 Demo
         </Typography>
+
+        {dsStatus &&
+          (dsStatus.ok ? (
+            <Alert severity="success">
+              DeepSeek 连接正常（{dsStatus.code}）
+            </Alert>
+          ) : (
+            <Alert severity="info">
+              DeepSeek 未就绪（{dsStatus.code}）。部署后请在 Vercel
+              项目设置中配置环境变量 VITE_DEEPSEEK_API_KEY。
+            </Alert>
+          ))}
 
         {!sttSupported && (
           <Alert severity="error">
